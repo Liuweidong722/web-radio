@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#0f1226" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="网络收音机" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="description" content="网络收音机在线版：电视伴音、国内广播、国外英文直播流，一键跳台、录制、预约与定时关闭。" />
+<meta property="og:title" content="网络收音机 · 在线版" />
+<meta property="og:description" content="国内外电台直播流，一键跳台，支持录制、预约与自动分段。" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="icon" href="icon-192.png" />
+<title>网络收音机 · 录制版</title>
+<style>
+  :root {
+    --bg: #0f1226;
+    --bg-soft: #171a35;
+    --panel: #1e2247;
+    --panel-2: #262b56;
+    --text: #eef1ff;
+    --muted: #9aa0c7;
+    --accent: #6c7bff;
+    --accent-2: #ff6ca8;
+    --ok: #38e08a;
+    --warn: #ffb454;
+    --rec: #ff4d5e;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC","Microsoft YaHei",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #2a2f66 0%, var(--bg) 55%);
+    color: var(--text);
+    display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden;
+  }
+
+  /* ---------- header ---------- */
+  header { padding: 16px 22px 10px; display: flex; align-items: center; gap: 14px; }
+  header .logo {
+    width: 42px; height: 42px; border-radius: 12px; flex: 0 0 auto;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-size: 22px; box-shadow: var(--shadow);
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
+  header p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+  header .spacer { flex: 1; }
+  header .status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: 0 0 auto; }
+  .dot.live { background: var(--ok); animation: pulse 1.6s infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(56,224,138,.55); }
+    70% { box-shadow: 0 0 0 10px rgba(56,224,138,0); }
+    100% { box-shadow: 0 0 0 0 rgba(56,224,138,0); }
+  }
+  .recpill {
+    display: none; align-items: center; gap: 7px; font-size: 12px; font-variant-numeric: tabular-nums;
+    background: rgba(255,77,94,.13); border: 1px solid rgba(255,77,94,.45); color: #ffd7db;
+    padding: 5px 11px; border-radius: 999px; white-space: nowrap;
+  }
+  .recpill.on { display: inline-flex; }
+  .recpill .rd { width: 8px; height: 8px; border-radius: 50%; background: var(--rec); animation: blink 1.1s infinite; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+  /* ---------- tabs ---------- */
+  nav.tabs { display: flex; gap: 6px; padding: 4px 18px 10px; flex-wrap: wrap; align-items: center; }
+  .tab {
+    border: 1px solid var(--panel-2); background: var(--panel); color: var(--muted);
+    padding: 8px 14px; border-radius: 999px; cursor: pointer; font-size: 13px; user-select: none; transition: .15s;
+  }
+  .tab:hover { color: var(--text); border-color: var(--accent); }
+  .tab.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; border-color: transparent; }
+  .tab .n { font-size: 11px; opacity: .8; margin-left: 3px; }
+
+  /* ---------- main ---------- */
+  main { flex: 1; overflow-y: auto; padding: 6px 18px 18px; -webkit-overflow-scrolling: touch; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--panel-2); border-radius: 14px; padding: 14px;
+    cursor: pointer; transition: .15s; position: relative; overflow: hidden;
+  }
+  .card:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: var(--shadow); }
+  .card.playing { border-color: var(--accent-2); box-shadow: 0 0 0 1px var(--accent-2), var(--shadow); }
+  .card.recording { border-color: var(--rec); box-shadow: 0 0 0 1px var(--rec), var(--shadow); }
+  .card .row1 { display: flex; align-items: center; gap: 10px; padding-right: 34px; }
+  .card .ico { width: 38px; height: 38px; border-radius: 10px; background: var(--panel-2); display: grid; place-items: center; font-size: 18px; flex: 0 0 auto; }
+  .card .name { font-size: 14px; font-weight: 600; line-height: 1.25; }
+  .card .meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .card .star {
+    position: absolute; top: 10px; right: 10px; font-size: 16px; color: var(--muted); cursor: pointer;
+    background: rgba(0,0,0,.25); border-radius: 8px; width: 28px; height: 28px; display: grid; place-items: center;
+  }
+  .card .star.on { color: var(--warn); }
+  .empty { color: var(--muted); text-align: center; padding: 40px 0; font-size: 14px; line-height: 1.7; }
+  .loading { color: var(--muted); text-align: center; padding: 30px 0; font-size: 13px; }
+  .badge {
+    display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 600; color: #fff;
+    background: var(--warn); border-radius: 6px; padding: 1px 6px; vertical-align: middle;
+  }
+  .badge.rec-no { background: #5a5f8a; }
+
+  /* ---------- 录音库 ---------- */
+  .reclist { display: flex; flex-direction: column; gap: 10px; }
+  .recitem {
+    background: var(--panel); border: 1px solid var(--panel-2); border-radius: 14px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .recitem .ri-ico { width: 38px; height: 38px; border-radius: 10px; background: var(--panel-2); display: grid; place-items: center; font-size: 18px; flex: 0 0 auto; }
+  .recitem .ri-main { flex: 1; min-width: 160px; }
+  .recitem .ri-name { font-size: 14px; font-weight: 600; word-break: break-all; line-height: 1.3; }
+  .recitem .ri-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .recitem .ri-ops { display: flex; gap: 6px; flex-wrap: wrap; }
+  .obtn {
+    border: 1px solid var(--panel-2); background: var(--bg-soft); color: var(--muted);
+    border-radius: 9px; padding: 6px 11px; font-size: 12px; cursor: pointer; transition: .15s; white-space: nowrap;
+  }
+  .obtn:hover { color: var(--text); border-color: var(--accent); }
+  .obtn.danger:hover { color: #ffd7db; border-color: var(--rec); }
+  .obtn.pri { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; border-color: transparent; }
+  .recitem audio { width: 100%; margin-top: 8px; height: 34px; }
+  .libbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .libbar .sum { font-size: 12px; color: var(--muted); margin-right: auto; }
+
+  /* ---------- player ---------- */
+  footer.player {
+    background: var(--bg-soft); border-top: 1px solid var(--panel-2); padding: 12px 20px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .player .now { flex: 1; min-width: 0; }
+  .player .now .t { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player .now .s { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .player .controls { display: flex; align-items: center; gap: 10px; }
+  .btn {
+    width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--panel-2); background: var(--panel);
+    color: var(--text); cursor: pointer; display: grid; place-items: center; font-size: 16px; transition: .15s; padding: 0;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.main { width: 54px; height: 54px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); border: none; font-size: 20px; }
+  .btn.record { border-color: rgba(255,77,94,.5); color: #ff8b96; font-size: 18px; }
+  .btn.record.on { background: var(--rec); border-color: transparent; color: #fff; animation: blink 1.3s infinite; }
+  .btn.subtitle { border-color: rgba(108,123,255,.5); color: #8b9aff; font-size: 14px; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--panel-2); background: var(--panel); cursor: pointer; display: grid; place-items: center; transition: .15s; padding: 0; }
+  .btn.subtitle.on { background: var(--accent); border-color: transparent; color: #fff; }
+  .btn.subtitle:hover { border-color: var(--accent); }
+  .player .vol { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+
+  /* ---------- 字幕 ---------- */
+  .subtitle-bar {
+    width: 100%; margin-top: 4px; min-height: 0; max-height: 0; overflow: hidden;
+    transition: max-height .3s ease, min-height .3s ease, padding .3s ease;
+    background: rgba(0,0,0,.28); border-radius: 8px; padding: 0 10px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .subtitle-bar.on { max-height: 150px; min-height: 40px; padding: 8px 12px; overflow-y: auto; }
+  .subtitle-bar .st-live { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .subtitle-bar .st-live .st-tag { font-size: 10px; color: var(--muted); opacity: .6; margin-right: 6px; }
+  .subtitle-bar .st-history { display: flex; flex-direction: column; gap: 6px; }
+  .subtitle-bar .st-line .st-cn { font-size: 15px; color: var(--accent-2); line-height: 1.5; font-weight: 600; }
+  .subtitle-bar .st-line .st-en { font-size: 11px; color: var(--muted); opacity: .8; line-height: 1.4; }
+  .subtitle-bar .st-idle { font-size: 12px; color: var(--muted); opacity: .5; }
+  .player .vol input { width: 110px; }
+  input[type=range] { accent-color: var(--accent); }
+
+  .rowbar {
+    width: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--panel-2);
+  }
+  .rowbar .tl { font-size: 12px; color: var(--muted); flex: 0 0 auto; }
+  .chip {
+    border: 1px solid var(--panel-2); background: var(--panel); color: var(--muted);
+    border-radius: 999px; padding: 5px 11px; font-size: 12px; cursor: pointer; user-select: none; transition: .15s;
+  }
+  .chip:hover { color: var(--text); border-color: var(--accent); }
+  .chip.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; border-color: transparent; }
+  .chip.go { background: var(--panel-2); color: var(--text); border-color: transparent; }
+  .chip.rec.active { background: var(--rec); }
+  .rowbar input[type=range] { flex: 1; min-width: 80px; accent-color: var(--accent); }
+  .rowbar .tv { font-size: 12px; color: var(--muted); min-width: 40px; }
+  .rowbar .left { font-size: 12px; color: var(--accent-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rowbar input[type=time], .rowbar input[type=number] {
+    background: var(--panel); border: 1px solid var(--panel-2); color: var(--text);
+    border-radius: 8px; padding: 5px 8px; font-size: 12px; outline: none; font-family: inherit;
+  }
+  .rowbar input[type=number] { width: 62px; }
+  .foldhead { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px; }
+  .foldhead .arrow { transition: .2s; font-size: 10px; color: var(--muted); }
+  .foldhead.open .arrow { transform: rotate(90deg); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(12px);
+    background: rgba(20,23,50,.96); border: 1px solid var(--panel-2); color: var(--text);
+    padding: 10px 16px; border-radius: 12px; font-size: 13px; box-shadow: var(--shadow);
+    opacity: 0; pointer-events: none; transition: .25s; z-index: 99; max-width: 84vw; text-align: center; line-height: 1.5;
+  }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  main::-webkit-scrollbar { width: 10px; }
+  main::-webkit-scrollbar-thumb { background: var(--panel-2); border-radius: 8px; }
+
+  /* ---------- 手机端 / MIUI 适配 ---------- */
+  @media (max-width: 680px) {
+    header { padding: 10px 12px 4px; padding-top: calc(10px + env(safe-area-inset-top)); }
+    header h1 { font-size: 14px; }
+    header p { display: none; }
+    header .logo { width: 32px; height: 32px; font-size: 16px; border-radius: 8px; }
+    header .status { font-size: 10px; gap: 4px; }
+    .recpill { font-size: 10px; padding: 3px 7px; gap: 4px; }
+    .recpill .rd { width: 6px; height: 6px; }
+    .gear { width: 32px; height: 32px; font-size: 16px; }
+
+    nav.tabs { flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding: 2px 10px 4px; scrollbar-width: none; }
+    nav.tabs::-webkit-scrollbar { display: none; }
+    .tab { flex: 0 0 auto; padding: 6px 10px; font-size: 12px; }
+
+    main { padding: 4px 12px 8px; }
+    .grid { grid-template-columns: 1fr; gap: 8px; }
+    .card { padding: 10px 12px; }
+    .card .row1 { gap: 8px; padding-right: 28px; }
+    .card .name { font-size: 13px; }
+    .card .ico { width: 32px; height: 32px; font-size: 15px; border-radius: 8px; }
+    .card .meta { font-size: 10px; margin-top: 2px; }
+    .card .star { font-size: 14px; width: 24px; height: 24px; top: 8px; right: 8px; }
+
+    footer.player {
+      flex-direction: column; align-items: stretch; gap: 6px;
+      padding: 8px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    }
+    .player .now { display: none; }
+    .player .controls { justify-content: center; gap: 10px; }
+    .btn { width: 38px; height: 38px; font-size: 15px; }
+    .btn.main { width: 46px; height: 46px; font-size: 18px; }
+    .btn.record { font-size: 14px; }
+    .player .vol { display: none; }
+    .rowbar { gap: 5px; margin-top: 2px; padding-top: 5px; }
+    .rowbar .tl { font-size: 11px; }
+    .rowbar .chip { font-size: 11px; padding: 3px 8px; }
+    .rowbar .foldhead { gap: 4px; }
+    .rowbar .foldhead .arrow { font-size: 8px; }
+    .rowbar input[type=time], .rowbar input[type=number] { font-size: 11px; padding: 3px 6px; }
+    .rowbar input[type=number] { width: 48px; }
+    .rowbar input[type=range] { width: 100%; height: 4px; }
+    .rowbar .tv, .rowbar .left { font-size: 11px; min-width: 30px; }
+    .recitem .ri-ops { width: 100%; }
+    .recitem { padding: 8px 10px; gap: 6px; }
+    .recitem .ri-ico { width: 30px; height: 30px; font-size: 14px; }
+    .recitem .ri-name { font-size: 13px; }
+    .recitem .ri-meta { font-size: 10px; margin-top: 1px; }
+    .recitem .ri-ops { width: 100%; gap: 4px; }
+    .recitem .ri-main { min-width: 100px; }
+    .recitem audio { height: 28px; margin-top: 4px; }
+    .obtn { flex: 1; text-align: center; padding: 4px 8px; font-size: 11px; }
+    .libbar { gap: 4px; margin-bottom: 6px; }
+    .libbar .sum { font-size: 11px; }
+    .toast { bottom: 132px; }
+    .gear { width: 40px; height: 40px; font-size: 19px; border: none; background: rgba(255,255,255,.12);
+            color: #fff; border-radius: 10px; cursor: pointer; }
+    .gear:active { transform: scale(.94); }
+    /* 设置弹窗 */
+    .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 60;
+                  display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal { width: 100%; max-width: 460px; background: var(--card, #fff); color: var(--text, #1a1a1a);
+             border-radius: 16px; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
+    .modal-h { padding: 16px 18px; font-size: 17px; font-weight: 700; background: var(--accent, #c0392b); color: #fff; }
+    .modal-b { padding: 8px 18px 4px; }
+    .set-row { padding: 12px 0; border-bottom: 1px solid rgba(128,128,128,.18); }
+    .set-row:last-child { border-bottom: none; }
+    .set-label { font-size: 13px; opacity: .65; margin-bottom: 6px; }
+    .set-val { font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+    .set-val label { display: inline-flex; align-items: center; gap: 5px; }
+    .set-val .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; opacity: .85; }
+    .hint { font-size: 12px; opacity: .6; }
+    .modal-f { padding: 12px 18px 16px; text-align: right; }
+    .modal-f .chip { background: var(--accent, #c0392b); color: #fff; border-color: transparent; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">📻</div>
+    <div>
+      <h1>网络收音机 · 录制版</h1>
+      <p>国内外电台直播流 · 一键跳台 · 原始流录制</p>
+    </div>
+    <div class="spacer"></div>
+    <div class="recpill" id="recPill"><span class="rd"></span><span id="recPillText">00:00</span></div>
+    <div class="status"><span class="dot" id="netDot"></span><span id="netText">就绪</span></div>
+    <button class="gear" id="gearBtn" title="设置（存储路径 / 常亮）">⚙</button>
+  </header>
+
+  <nav class="tabs">
+    <div class="tab active" data-tab="tv">电视伴音</div>
+    <div class="tab" data-tab="cn">国内广播</div>
+    <div class="tab" data-tab="en">国外英文广播</div>
+    <div class="tab" data-tab="fav">收藏</div>
+    <div class="tab" data-tab="lib">🎙️ 录音库<span class="n" id="libCount"></span></div>
+  </nav>
+  <main>
+    <div class="grid" id="grid"></div>
+    <div class="reclist" id="reclist" style="display:none"></div>
+    <div class="loading" id="loading" style="display:none">加载中…</div>
+    <div class="empty" id="empty" style="display:none"></div>
+  </main>
+
+  <footer class="player">
+    <div class="now">
+      <div class="t" id="nowTitle">未播放</div>
+      <div class="s" id="nowSub">点击上方任一电台开始收听</div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="prevBtn" title="上一台">⏮</button>
+      <button class="btn main" id="playBtn" title="播放/暂停">▶</button>
+      <button class="btn" id="nextBtn" title="下一台">⏭</button>
+      <button class="btn record" id="recBtn" title="开始/停止录音">⏺</button>
+      <button class="btn subtitle" id="subBtn" title="开启/关闭实时字幕（英文台）">CC</button>
+    </div>
+    <div class="vol">
+      🔊<input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" />
+    </div>
+
+    <div class="rowbar">
+      <span class="tl foldhead open" id="foldRec"><span class="arrow">▶</span>录制设置</span>
+      <span id="recSettings" style="display:contents">
+        <span class="tl">分段</span>
+        <button class="chip" data-seg="0">关</button>
+        <button class="chip" data-seg="15">15分</button>
+        <button class="chip" data-seg="30">30分</button>
+        <button class="chip" data-seg="60">60分</button>
+        <span class="tl" style="margin-left:8px">预约</span>
+        <input type="time" id="schTime" />
+        <input type="number" id="schDur" min="1" max="600" value="30" title="录制时长(分钟)" />
+        <span class="tl">分钟</span>
+        <button class="chip" id="schDaily" title="每天重复">每天</button>
+        <button class="chip go" id="schToggle">设定</button>
+        <span class="left" id="schInfo"></span>
+      </span>
+    </div>
+
+    <div class="rowbar">
+      <span class="tl">定时关闭</span>
+      <button class="chip" data-min="5">5分</button>
+      <button class="chip" data-min="10">10分</button>
+      <button class="chip" data-min="30">30分</button>
+      <input type="range" id="timerRange" min="1" max="180" step="1" value="10" />
+      <span class="tv" id="timerVal">10分</span>
+      <button class="chip go" id="timerToggle">开始</button>
+      <span class="left" id="timerLeft"></span>
+    </div>
+
+    <div class="subtitle-bar" id="subBar">
+      <div class="st-live" id="subLive"><span class="st-idle">字幕未开启（英文/境外台可用）</span></div>
+      <div class="st-history" id="subHistory"></div>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="modal-mask" id="settingsModal" style="display:none">
+    <div class="modal">
+      <div class="modal-h">⚙ 设置</div>
+      <div class="modal-b">
+        <div class="set-row" id="rowStorage">
+          <div class="set-label">录音存储位置</div>
+          <div class="set-val">
+            <label><input type="radio" name="stgStorage" value="app" checked> 应用内（录音库）</label>
+            <label id="lblFolder" style="display:none"><input type="radio" name="stgStorage" value="folder"> 本机文件夹：<b id="folderName">未选择</b></label>
+            <button class="chip" id="btnChooseFolder" style="display:none">选择文件夹</button>
+            <span class="hint" id="fsHint"></span>
+          </div>
+        </div>
+        <div class="set-row" id="rowKeepAwake">
+          <div class="set-label">保持屏幕常亮（前台运行）</div>
+          <div class="set-val">
+            <label><input type="checkbox" id="chkKeepAwake" checked> 录制时阻止手机休眠，避免被中断</label>
+          </div>
+        </div>
+        <div class="set-row" id="rowDesktop" style="display:none">
+          <div class="set-label">录音存储路径（桌面版）</div>
+          <div class="set-val">
+            <span id="desktopPath" class="mono"></span>
+            <button class="chip" id="btnDesktopPick">选择文件夹</button>
+            <button class="chip" id="btnDesktopOpen">打开目录</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-f">
+        <button class="chip" id="btnCloseSettings">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/hls.min.js"></script>
+  <script>
+  (function () {
+    "use strict";
+
+    /* =========================================================
+     * 0. 运行环境
+     *    桌面客户端会注入 window.__DESKTOP__ / __PROXY__ / __PROXY_FORCE__
+     * ========================================================= */
+    const IS_DESKTOP = !!window.__DESKTOP__;
+    const API = window.__API__ || "";          // 桌面端 REST 前缀
+    const HAS_PYWEBVIEW = !!(window.pywebview && window.pywebview.api);
+    const FS_AVAIL = ("showDirectoryPicker" in window);
+
+    // 用户设置（存储位置 / 常亮 等）
+    const SET_KEY = "webradio_settings_v1";
+    function loadSettings() {
+      try { return Object.assign({ storage: "app", keepAwake: true }, JSON.parse(localStorage.getItem(SET_KEY) || "{}")); }
+      catch (e) { return { storage: "app", keepAwake: true }; }
+    }
+    function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch (e) {} }
+    let settings = loadSettings();
+
+    /* =========================================================
+     * 1. 电台目录
+     * ========================================================= */
+    const TV_STATIONS = [
+      { name: "CCTV-1 综合频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv1_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-2 财经频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv2_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-3 综艺频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv3_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-4 中文国际", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv4_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-5 体育频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv5_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-6 电影频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv6_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-7 国防军事", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv7_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-8 电视剧频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv8_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-9 纪录频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv9_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-10 科教频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv10_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-11 戏曲频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv11_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-12 社会与法", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv12_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-13 新闻频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv13_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-14 少儿频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv14_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-15 音乐频道", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv15_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CCTV-16 奥林匹克", country: "中国", url: "https://piccpndali.v.myalicdn.com/audio/cctv16_2.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "北京卫视 (BRTV)", country: "中国", url: "http://39.134.24.161/dbiptv.sn.chinamobile.com/PLTV/88888890/224/3221225796/index.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "凤凰卫视资讯台", country: "中国", url: "http://playtv-live.ifeng.com/live/06OLEEWQKN4_audio.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "Fox News (US)", country: "美国", url: "https://radiovid.foxnews.com/hls/live/661547/RADIOVID/index.m3u8", bitrate: 64, codec: "HLS", region: "intl" },
+      { name: "CNN (US)", country: "美国", url: "http://tunein.ord.streamguys1.com/secure-CNNi", bitrate: 96, codec: "MP3", region: "intl" },
+      { name: "BBC World News (UK)", country: "英国", url: "https://stream.live.vc.bbcmedia.co.uk/bbc_world_news", bitrate: 128, codec: "AAC", region: "intl" },
+      { name: "DW (德国)", country: "德国", url: "https://dwstreams.akamaized.net/tv/mp3audio_live_int_eng.mp3", bitrate: 96, codec: "MP3", region: "intl" },
+      { name: "France 24 (English)", country: "法国", url: "https://stream.france24.com/f24/en/f24_en.m3u8", bitrate: 96, codec: "HLS", region: "intl" },
+      { name: "Al Jazeera (English)", country: "卡塔尔", url: "https://live.aljazeera.com/streams/english.mp3", bitrate: 64, codec: "MP3", region: "intl" }
+    ];
+
+    const CN_RADIO = [
+      { name: "CNR 中国之声", country: "中国", url: "https://lhttp.qtfm.cn/live/15318317/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "CNR 经济之声", country: "中国", url: "https://ngcdn002.cnr.cn/live/jjzs/index.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CNR 音乐之声", country: "中国", url: "https://ngcdn002.cnr.cn/live/yyzs/index.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CNR 文艺之声", country: "中国", url: "https://ngcdn002.cnr.cn/live/wyzs/index.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CNR 中国乡村之声", country: "中国", url: "https://ngcdn002.cnr.cn/live/xczs/index.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "CNR 老年之声", country: "中国", url: "https://lhttp.qingting.fm/live/20211701/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "CNR 民族之声", country: "中国", url: "https://ngcdn002.cnr.cn/live/mzzs/index.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "北京新闻广播", country: "中国", url: "https://lhttp.qtfm.cn/live/339/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "北京交通广播", country: "中国", url: "https://lhttp.qingting.fm/live/336/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "北京音乐广播", country: "中国", url: "https://lhttp.qtfm.cn/live/332/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "北京文艺广播", country: "中国", url: "https://lhttp.qtfm.cn/live/333/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "北京体育广播", country: "中国", url: "https://lhttp.qtfm.cn/live/345/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "上海动感101 FM101.7", country: "中国", url: "https://lhttp.qingting.fm/live/274/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "上海Love Radio FM103.7", country: "中国", url: "https://lhttp.qingting.fm/live/273/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "上海新闻广播 FM93.4", country: "中国", url: "https://lhttp.qingting.fm/live/270/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "上海交通台 FM105.7", country: "中国", url: "https://lhttp.qtfm.cn/live/266/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "上海经典947 FM94.7", country: "中国", url: "https://lhttp.qtfm.cn/live/267/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "广东音乐之声 FM99.3", country: "中国", url: "https://lhttp.qtfm.cn/live/1260/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "广东羊城交通 FM105.2", country: "中国", url: "https://lhttp.qtfm.cn/live/1262/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "广东新闻频道 FM91.4", country: "中国", url: "https://lhttp.qtfm.cn/live/1254/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "广州交通电台 FM106.1", country: "中国", url: "https://lhttp.qtfm.cn/live/4955/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "广州新闻电台 FM96.2", country: "中国", url: "https://lhttp.qtfm.cn/live/4848/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "深圳先锋898新闻广播", country: "中国", url: "https://lhttp.qingting.fm/live/1270/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "深圳快乐1062交通广播", country: "中国", url: "https://lhttp.qtfm.cn/live/1272/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "深圳飞扬971音乐广播", country: "中国", url: "https://lhttp.qtfm.cn/live/1271/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "浙江之声 FM88", country: "中国", url: "https://lhttp.qtfm.cn/live/4518/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "浙江交通之声 FM93", country: "中国", url: "https://lhttp.qtfm.cn/live/4522/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "浙江动听音乐 FM96.8", country: "中国", url: "https://lhttp.qtfm.cn/live/4866/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "浙江女主播电台 FM104.5", country: "中国", url: "https://lhttp.qtfm.cn/live/4524/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "江苏交通广播 FM101.1", country: "中国", url: "https://lhttp.qtfm.cn/live/4054/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "江苏新闻广播 FM93.7", country: "中国", url: "https://lhttp.qtfm.cn/live/4944/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "长沙交通音乐广播 FM106.1", country: "中国", url: "https://lhttp.qtfm.cn/live/3967/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "长沙新闻广播 FM105.0", country: "中国", url: "https://lhttp.qtfm.cn/live/4877/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "楚天交通广播 FM92.7", country: "中国", url: "https://lhttp.qtfm.cn/live/1291/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "楚天音乐广播 FM105.8", country: "中国", url: "https://lhttp.qtfm.cn/live/1289/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "四川交通广播 FM101.7", country: "中国", url: "https://lhttp.qtfm.cn/live/4886/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "四川岷江音乐 FM95.5", country: "中国", url: "https://lhttp.qtfm.cn/live/1110/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "四川新闻综合 FM98.1", country: "中国", url: "https://lhttp.qtfm.cn/live/4906/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "西安新闻广播 FM95.0", country: "中国", url: "https://lhttp.qtfm.cn/live/1610/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "西安交通广播 FM104.3", country: "中国", url: "https://lhttp.qtfm.cn/live/1611/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "西安音乐广播 FM93.1", country: "中国", url: "https://lhttp.qtfm.cn/live/1612/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "陕西新闻广播 FM106.6", country: "中国", url: "https://lhttp.qtfm.cn/live/1600/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "陕西交通广播 FM91.6", country: "中国", url: "https://lhttp.qtfm.cn/live/1601/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "重庆新闻广播 FM96.8", country: "中国", url: "https://lhttp.qtfm.cn/live/1498/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "重庆交通广播 FM95.5", country: "中国", url: "https://lhttp.qtfm.cn/live/1500/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "重庆音乐广播 FM88.1", country: "中国", url: "https://lhttp.qtfm.cn/live/647/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "山东交通广播 FM101.1", country: "中国", url: "https://audiolive302.iqilu.com/sdradioJiaotong/sdradio05/playlist.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "山东音乐广播 FM99.1", country: "中国", url: "https://audiolive302.iqilu.com/sdradioYinyue/sdradio07/playlist.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "青岛新闻广播 FM107.6", country: "中国", url: "https://lhttp.qingting.fm/live/1673/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "青岛交通广播 FM89.7", country: "中国", url: "https://lhttp.qingting.fm/live/1676/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "河南交通广播 FM104.1", country: "中国", url: "https://stream.hndt.com/live/jiaotong/playlist.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "河南新闻广播 FM95.4", country: "中国", url: "https://stream.hndt.com/live/xinwen/playlist.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "河南音乐广播 FM88.1", country: "中国", url: "https://stream.hndt.com/live/yinyue/playlist.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "河北交通广播 FM99.2", country: "中国", url: "https://radio.pull.hebtv.com/live/hebjt.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "河北新闻广播 FM104.3", country: "中国", url: "https://radio.pull.hebtv.com/live/hebxw.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "厦门新闻广播", country: "中国", url: "https://lhttp.qtfm.cn/live/1737/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "厦门音乐广播", country: "中国", url: "https://lhttp.qtfm.cn/live/1739/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "沈阳新闻广播 FM104.5", country: "中国", url: "https://lhttp.qingting.fm/live/20024/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "沈阳音乐广播 FM98.6", country: "中国", url: "https://lhttp.qtfm.cn/live/1101/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "辽宁交通广播 FM97.5", country: "中国", url: "https://lhttp.qtfm.cn/live/20025/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "吉林交通广播 FM103.8", country: "中国", url: "https://live-jlr.jlntv.cn/live/fm1038.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "云南交通广播 FM91.8", country: "中国", url: "https://lhttp.qtfm.cn/live/1928/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "云南新闻广播 FM105.8", country: "中国", url: "https://lhttp.qtfm.cn/live/1926/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "贵州交通广播 FM95.2", country: "中国", url: "https://lhttp.qingting.fm/live/20057/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "广西新闻910 FM91.0", country: "中国", url: "https://lhttp.qtfm.cn/live/1753/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "太原交通广播 FM107", country: "中国", url: "https://lhttp-hw.qtfm.cn/live/4900/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "太原音乐广播 FM102.6", country: "中国", url: "https://lhttp.qingting.fm/live/1185/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "兰州交通音乐 FM99.5", country: "中国", url: "https://liveplus.lzr.com.cn/aac_jtyy/HD/live.m3u8", bitrate: 64, codec: "HLS" },
+      { name: "新疆交通广播 FM94.9", country: "中国", url: "https://lhttp.qtfm.cn/live/1902/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "海南新闻广播 FM88.6", country: "中国", url: "https://lhttp.qingting.fm/live/1861/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "海南交通广播 FM100", country: "中国", url: "https://lhttp.qingting.fm/live/4911/64k.mp3", bitrate: 64, codec: "MP3" },
+      { name: "CRI 环球资讯广播", country: "中国", url: "https://sk.cri.cn/905.m3u8", bitrate: 64, codec: "HLS" }
+    ];
+
+    const EN_RADIO = [
+      { name: "KEXP 90.3 Seattle", country: "美国", url: "https://kexp.streamguys1.com/kexp160.aac", bitrate: 160, codec: "AAC", region: "intl" },
+      { name: "BBC World Service", country: "英国", url: "http://stream.live.vc.bbcmedia.co.uk/bbc_world_service", bitrate: 128, codec: "AAC", region: "intl" },
+      { name: "BBC Radio 1", country: "英国", url: "http://stream.live.vc.bbcmedia.co.uk/bbc_radio_one", bitrate: 128, codec: "AAC", region: "intl" },
+      { name: "BBC Radio 4", country: "英国", url: "http://stream.live.vc.bbcmedia.co.uk/bbc_radio_fourfm", bitrate: 128, codec: "AAC", region: "intl" },
+      { name: "Deutsche Welle (EN)", country: "德国", url: "https://dwstreams.akamaized.net/tv/mp3audio_live_int_eng.mp3", bitrate: 96, codec: "MP3", region: "intl" },
+      { name: "France Inter", country: "法国", url: "http://icecast.radiofrance.fr/franceinter-midfi.mp3", bitrate: 128, codec: "MP3", region: "intl" },
+      { name: "Classic FM (UK)", country: "英国", url: "http://media-ice.musicradio.com/ClassicFMMP3", bitrate: 128, codec: "MP3", region: "intl" },
+      { name: "ABC Radio National (AU)", country: "澳大利亚", url: "http://live-radio01.mediahubaustralia.com/2TJW/aac/", bitrate: 96, codec: "AAC", region: "intl" },
+      { name: "WNYC (New York)", country: "美国", url: "http://stream.wnyc.org/wnycfm", bitrate: 128, codec: "MP3", region: "intl" },
+      { name: "CBC Radio One (CA)", country: "加拿大", url: "http://cbcradiolive.akacast.akamaized.net/ckcr-fm-mp3-64", bitrate: 64, codec: "MP3", region: "intl" },
+      { name: "SomaFM Groove Salad", country: "美国", url: "https://ice1.somafm.com/groovesalad-128-mp3", bitrate: 128, codec: "MP3", region: "intl" }
+    ];
+
+    /* =========================================================
+     * 2. 工具
+     * ========================================================= */
+    const $ = (id) => document.getElementById(id);
+    function escapeHtml(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+    }
+    function fmtSize(b) {
+      if (!b) return "0 B";
+      if (b < 1024) return b + " B";
+      if (b < 1048576) return (b / 1024).toFixed(1) + " KB";
+      if (b < 1073741824) return (b / 1048576).toFixed(1) + " MB";
+      return (b / 1073741824).toFixed(2) + " GB";
+    }
+    function fmtDur(ms) {
+      const s = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+      const p = (n) => String(n).padStart(2, "0");
+      return h > 0 ? h + ":" + p(m) + ":" + p(ss) : p(m) + ":" + p(ss);
+    }
+    function stamp(d) {
+      d = d || new Date();
+      const p = (n) => String(n).padStart(2, "0");
+      return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+    }
+    function safeName(s) {
+      return String(s || "录音").replace(/[\\/:*?"<>|\r\n]/g, "_").slice(0, 60);
+    }
+    let toastTimer = null;
+    function toast(msg, ms) {
+      const t = $("toast");
+      t.textContent = msg;
+      t.classList.add("on");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove("on"), ms || 2600);
+    }
+    function isHlsUrl(st) {
+      return /\.m3u8($|\?)/i.test(st.url) || /^HLS$/i.test(st.codec || "");
+    }
+
+    /* =========================================================
+     * 3. MPEG-TS → ADTS AAC 解复用
+     *    HLS 分片多为 188 字节 TS 包，直接拼接后 Windows 播放器打不开；
+     *    抽出音频 PES（ADTS 帧自带同步头）拼接即为标准 .aac 文件。
+     * ========================================================= */
+    function tsExtractAudio(u8) {
+      if (!u8 || u8.length < 188) return null;
+      // 已经是裸 ADTS / MP3 分片，直接用
+      if (u8[0] === 0xFF && (u8[1] & 0xF0) === 0xF0) return { data: u8, ext: (u8[1] & 0x06) === 0x00 ? "aac" : "aac" };
+      if (u8[0] === 0x49 && u8[1] === 0x44 && u8[2] === 0x33) return { data: u8, ext: "aac" }; // ID3 打头的 AAC 分片
+      if (u8[0] !== 0x47) return null;
+
+      let pmtPid = -1, audioPid = -1, audioType = -1;
+      const out = [];
+      let total = 0;
+
+      for (let off = 0; off + 188 <= u8.length; off += 188) {
+        if (u8[off] !== 0x47) break;
+        const pusi = (u8[off + 1] & 0x40) !== 0;
+        const pid = ((u8[off + 1] & 0x1F) << 8) | u8[off + 2];
+        const afc = (u8[off + 3] >> 4) & 0x03;
+        let p = off + 4;
+        if (afc === 2) continue;
+        if (afc === 3) p += u8[p] + 1;
+        if (p >= off + 188) continue;
+
+        if (pid === 0 && pmtPid < 0) {
+          let q = p + (pusi ? u8[p] + 1 : 0);
+          const secLen = ((u8[q + 1] & 0x0F) << 8) | u8[q + 2];
+          const end = q + 3 + secLen - 4;
+          for (let i = q + 8; i + 3 < end; i += 4) {
+            const prog = (u8[i] << 8) | u8[i + 1];
+            const pidv = ((u8[i + 2] & 0x1F) << 8) | u8[i + 3];
+            if (prog !== 0) { pmtPid = pidv; break; }
+          }
+        } else if (pid === pmtPid && audioPid < 0) {
+          let q = p + (pusi ? u8[p] + 1 : 0);
+          const secLen = ((u8[q + 1] & 0x0F) << 8) | u8[q + 2];
+          const end = q + 3 + secLen - 4;
+          const piLen = ((u8[q + 10] & 0x0F) << 8) | u8[q + 11];
+          let i = q + 12 + piLen;
+          while (i + 4 < end) {
+            const stype = u8[i];
+            const epid = ((u8[i + 1] & 0x1F) << 8) | u8[i + 2];
+            const esLen = ((u8[i + 3] & 0x0F) << 8) | u8[i + 4];
+            if (stype === 0x0F || stype === 0x11 || stype === 0x03 || stype === 0x04) {
+              audioPid = epid; audioType = stype; break;
+            }
+            i += 5 + esLen;
+          }
+        } else if (pid === audioPid && audioPid >= 0) {
+          let q = p;
+          if (pusi) {
+            // PES 头：00 00 01 <sid> <len2> <flags2> <hdrLen1>
+            if (u8[q] === 0x00 && u8[q + 1] === 0x00 && u8[q + 2] === 0x01) {
+              q += 9 + u8[q + 8];
+            }
+          }
+          if (q < off + 188) {
+            const seg = u8.subarray(q, off + 188);
+            out.push(seg); total += seg.length;
+          }
+        }
+      }
+      if (!total) return null;
+      const merged = new Uint8Array(total);
+      let o = 0;
+      for (const s of out) { merged.set(s, o); o += s.length; }
+      return { data: merged, ext: (audioType === 0x03 || audioType === 0x04) ? "mp3" : "aac" };
+    }
+
+    /* =========================================================
+     * 4. 录音库存储：IndexedDB（网页/PWA） 或 本地磁盘（桌面）
+     * ========================================================= */
+    const DB_NAME = "webradio-rec", DB_STORE = "items";
+    let dbp = null;
+    function db() {
+      if (dbp) return dbp;
+      dbp = new Promise((res, rej) => {
+        const rq = indexedDB.open(DB_NAME, 1);
+        rq.onupgradeneeded = () => {
+          const d = rq.result;
+          if (!d.objectStoreNames.contains(DB_STORE)) {
+            d.createObjectStore(DB_STORE, { keyPath: "id", autoIncrement: true });
+          }
+        };
+        rq.onsuccess = () => res(rq.result);
+        rq.onerror = () => rej(rq.error);
+      });
+      return dbp;
+    }
+    async function dbAdd(item) {
+      const d = await db();
+      return new Promise((res, rej) => {
+        const tx = d.transaction(DB_STORE, "readwrite");
+        const rq = tx.objectStore(DB_STORE).add(item);
+        rq.onsuccess = () => res(rq.result);
+        rq.onerror = () => rej(rq.error);
+      });
+    }
+    async function dbAll() {
+      const d = await db();
+      return new Promise((res, rej) => {
+        const tx = d.transaction(DB_STORE, "readonly");
+        const rq = tx.objectStore(DB_STORE).getAll();
+        rq.onsuccess = () => res((rq.result || []).sort((a, b) => b.startedAt - a.startedAt));
+        rq.onerror = () => rej(rq.error);
+      });
+    }
+    async function dbDel(id) {
+      const d = await db();
+      return new Promise((res, rej) => {
+        const tx = d.transaction(DB_STORE, "readwrite");
+        const rq = tx.objectStore(DB_STORE).delete(id);
+        rq.onsuccess = () => res();
+        rq.onerror = () => rej(rq.error);
+      });
+    }
+    async function dbPut(item) {
+      const d = await db();
+      return new Promise((res, rej) => {
+        const tx = d.transaction(DB_STORE, "readwrite");
+        const rq = tx.objectStore(DB_STORE).put(item);
+        rq.onsuccess = () => res();
+        rq.onerror = () => rej(rq.error);
+      });
+    }
+
+    /* =========================================================
+     * 5. 播放引擎
+     * ========================================================= */
+    const audio = new Audio();
+    audio.preload = "none";
+    audio.volume = 0.8;
+    let hls = null;
+    let current = null, currentList = [], currentIndex = -1;
+    let currentUrl = "";
+    let subOn = false, subWs = null;
+    let activeTab = "tv";
+    const FAV_KEY = "webradio_favs_v1";
+    let favs = loadFavs();
+
+    function loadFavs() { try { return JSON.parse(localStorage.getItem(FAV_KEY) || "[]"); } catch (e) { return []; } }
+    function saveFavs() { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); }
+    function isFav(st) { return favs.some(f => f.url === st.url); }
+    function toggleFav(st) {
+      if (isFav(st)) favs = favs.filter(f => f.url !== st.url); else favs.push(st);
+      saveFavs();
+      if (activeTab === "fav") render(); else updateStars();
+    }
+
+    // 播放代理链：直连优先 → 失败逐级回落（不强制走代理，否则单点失败整台判死）。
+    // 在线版回落优先走**同源 /proxy?url=**（server.js 服务端转发）：
+    //   - 不受浏览器 CORS / 混合内容限制，也不依赖国内访问不到的公共代理；
+    //   - 桌面端仍以注入的本地代理打头（私密且稳）。
+    const PUB_PROXIES = ["https://api.allorigins.win/raw?url=",
+                         "https://api.codetabs.com/v1/proxy/?quest="];
+    const SAME_PROXY = (location.protocol === "http:" || location.protocol === "https:")
+      ? location.origin + "/proxy?url=" : "";
+    const PROXIES = [];
+    if (window.__PROXY__) PROXIES.push(window.__PROXY__);
+    if (SAME_PROXY && PROXIES.indexOf(SAME_PROXY) < 0) PROXIES.push(SAME_PROXY);
+    PUB_PROXIES.forEach(p => PROXIES.push(p));
+    const FORCE_PROXY = false;
+    let proxyIdx = 0, usingProxy = false;
+    let usingHls = false, playCands = [], playIdx = 0;
+
+    function makeXhrSetup() {
+      return function (xhr, u) {
+        const base = PROXIES[proxyIdx % PROXIES.length];
+        if (usingProxy && u.indexOf(base) !== 0) xhr.open("GET", base + encodeURIComponent(u), true);
+      };
+    }
+
+    // 非 HLS 直链的候选序列：直连（除非会被混合内容拦截）→ 同源代理 → 公共代理
+    function buildPlayCands(st) {
+      const cands = [];
+      const mixed = (location.protocol === "https:" && /^http:\/\//i.test(st.url));
+      if (!mixed) cands.push({ url: st.url, via: "direct", pidx: -1 });
+      for (let i = 0; i < PROXIES.length; i++)
+        cands.push({ url: PROXIES[i] + encodeURIComponent(st.url), via: "proxy", pidx: i });
+      return cands;
+    }
+    function tryPlayCand(st) {
+      const c = playCands[playIdx];
+      if (!c) return;
+      usingProxy = (c.via === "proxy");
+      proxyIdx = usingProxy ? c.pidx : 0;
+      // 首选就是代理 = 直连被浏览器拦（混合内容），说明一下走的是服务器线路
+      if (usingProxy && playIdx === 0 && playCands.length && playCands[0].via === "proxy")
+        setNow(st, "该链接受浏览器限制，改走服务器代理…");
+      audio.src = c.url;
+      audio.play().catch(() => {});
+    }
+
+    function startHls(url, st) {
+      hls = new Hls({
+        lowLatencyMode: true, xhrSetup: makeXhrSetup(),
+        manifestLoadingMaxRetry: 2, fragmentLoadingMaxRetry: 3, backBufferLength: 30
+      });
+      hls.loadSource(url);
+      hls.attachMedia(audio);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => { audio.play().catch(() => {}); });
+      hls.on(Hls.Events.FRAG_LOADED, onFragLoaded);
+      hls.on(Hls.Events.ERROR, (ev, data) => {
+        if (!data.fatal) return;
+        if (usingProxy && proxyIdx < PROXIES.length - 1) {
+          proxyIdx++; setNow(st, "代理不可用，换用备用代理…");
+          try { hls.destroy(); } catch (e) {} startHls(url, st);
+        } else if (!usingProxy) {
+          usingProxy = true; proxyIdx = 0; setNow(st, "直连被跨域拦截，正通过代理重试…");
+          try { hls.destroy(); } catch (e) {} startHls(url, st);
+        } else {
+          setNow(st, IS_DESKTOP ? "该台连接失败，可能链接已失效"
+                                : "连接失败：直连与代理线路均不可用（链接可能已失效）");
+          setNet("失败", false);
+        }
+      });
+    }
+
+    function playStation(st, list, index) {
+      if (Rec.active && Rec.station && Rec.station.url !== st.url) {
+        toast("切台会结束当前录音，已自动保存");
+        Rec.stop();
+      }
+      stopCurrent();
+      current = st;
+      currentUrl = st.url;
+      // 仅英文/境外台且**有字幕后端**时显示字幕按钮（在线静态页没有后端就别亮按钮）
+      const isIntl = st.region === "intl";
+      $("subBtn").style.display = (isIntl && subAvailable()) ? "" : "none";
+      if (!isIntl && subOn) stopSubtitle();
+      else if (isIntl && subOn) startSubtitle();   // 切台时自动跟随新台
+      currentList = (list && list.length) ? list : [st];
+      currentIndex = (typeof index === "number") ? index : currentList.findIndex(x => x.url === st.url);
+      usingProxy = false; proxyIdx = 0;   // 直连优先，失败再逐级回落代理
+      usingHls = false; playCands = []; playIdx = 0;
+      // https 页面里 http:// 源属「混合内容」，浏览器直接拦截 —— 跳过直连走代理
+      const mixedBlocked = (location.protocol === "https:" && /^http:\/\//i.test(st.url));
+      if (mixedBlocked) { usingProxy = true; proxyIdx = 0; }
+
+      setNow(st, "连接中…"); setNet("连接中", false);
+
+      if (isHlsUrl(st) && window.Hls && Hls.isSupported()) {
+        usingHls = true;
+        startHls(st.url, st);
+      } else if (isHlsUrl(st) && audio.canPlayType("application/vnd.apple.mpegurl")) {
+        usingHls = true;   // Safari 原生 HLS：混合内容时经同源代理（播放列表已改写分片地址）
+        const src = (mixedBlocked && SAME_PROXY) ? SAME_PROXY + encodeURIComponent(st.url) : st.url;
+        audio.src = src; audio.play().catch(() => {});
+      } else {
+        playCands = buildPlayCands(st);
+        playIdx = 0;
+        tryPlayCand(st);
+      }
+
+      audio.onplaying = () => { setNow(st, metaLine(st)); setNet("直播中", true); setPlayIcon(true); markPlaying(); };
+      audio.onwaiting = () => { setNet("缓冲", false); };
+      audio.onpause = () => { setPlayIcon(false); };
+      audio.onerror = () => {
+        // 非 HLS 直链：当前线路失败 → 逐级切换备用线路（直连 → 同源代理 → 公共代理）
+        if (!usingHls && playIdx < playCands.length - 1) {
+          playIdx++;
+          setNow(st, playCands[playIdx - 1].via === "direct"
+            ? "直连失败，改用代理线路…" : "线路失败，切换备用线路…");
+          tryPlayCand(st);
+          return;
+        }
+        const err = audio.error;
+        let msg = "无法播放，可能链接已失效";
+        if (err) {
+          if (err.code === 2) msg = "网络无法连接（多为地区限制 / 防火墙拦截）";
+          else if (err.code === 4) msg = "格式不支持或链接已失效";
+          else if (err.code === 3) msg = "音频解码失败";
+        }
+        setNow(st, msg); setNet("失败", false);
+      };
+      updateMediaSession(st);
+      updateRecBtn();
+      markPlaying();
+    }
+
+    function stopCurrent() {
+      usingHls = false; playCands = []; playIdx = 0;
+      try { audio.pause(); } catch (e) {}
+      if (hls) { try { hls.off(Hls.Events.FRAG_LOADED, onFragLoaded); hls.destroy(); } catch (e) {} hls = null; }
+      audio.removeAttribute("src");
+      try { audio.load(); } catch (e) {}
+    }
+
+    function setPlayIcon(p) { $("playBtn").textContent = p ? "⏸" : "▶"; }
+
+    /* =========================================================
+     * 8.5 实时字幕（不碰麦克风）
+     *   后端（桌面 app.py / 在线 ASR 服务）截获电台流 → Vosk 离线识别 →
+     *   中文翻译 → WebSocket 推送；声音来自电台本身，与麦克风无关。
+     * ========================================================= */
+    function subWsUrl() {
+      if (window.__WS__) return window.__WS__;                 // 桌面 exe / 自托管后端注入
+      const q = new URLSearchParams(location.search).get("asr");
+      if (q) return q;                                          // 在线静态页手动指定后端，如 ?asr=ws://host:8001
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      return proto + "://" + location.host + "/ws/asr";        // 同源后端（自托管后端若同端口提供）
+    }
+    // 字幕依赖后端（桌面 exe 内置 / 在线自托管 ?asr=）；两者都没有时隐藏 CC 按钮，
+    // 避免在线版点了只报「后端不可用」。
+    function subAvailable() {
+      return IS_DESKTOP || !!window.__WS__ ||
+        !!new URLSearchParams(location.search).get("asr");
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    // 英文 → 中文简体：优先 Google 免费接口，失败兜底 MyMemory（均在前端执行，
+    // 走用户本机/浏览器网络，不依赖服务端出口）。
+    async function translateEnZh(text) {
+      if (!text) return "";
+      try {
+        const u = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q="
+                  + encodeURIComponent(text);
+        const r = await fetch(u);
+        const d = await r.json();
+        let s = "";
+        for (const seg of d[0]) if (seg && seg[0]) s += seg[0];
+        if (s) return s;
+      } catch (e) { /* 忽略，走兜底 */ }
+      try {
+        const u = "https://api.mymemory.translated.net/get?q="
+                  + encodeURIComponent(text) + "&langpair=en|zh-CN";
+        const r = await fetch(u);
+        const d = await r.json();
+        if (d && d.responseData && d.responseData.translatedText
+            && d.responseData.translatedText !== "MYMEMORY WARNING") {
+          return d.responseData.translatedText;
+        }
+      } catch (e) { /* 忽略 */ }
+      return "";
+    }
+    function startSubtitle() {
+      if (!currentUrl) { toast("请先播放一个电台"); return; }
+      stopSubtitle();
+      let ws;
+      try { ws = new WebSocket(subWsUrl()); }
+      catch (e) { toast("字幕后端不可用"); return; }
+      subWs = ws; subOn = true;
+      $("subBtn").classList.add("on");
+      $("subBar").classList.add("on");
+      $("subLive").innerHTML = '<span class="st-idle">正在连接字幕服务…</span>';
+      $("subHistory").innerHTML = "";
+      ws.onopen = () => {
+        const payload = { url: currentUrl };
+        if (window.__ASR_PROXY__) payload.proxy = window.__ASR_PROXY__;
+        try { ws.send(JSON.stringify(payload)); } catch (e) {}
+        $("subLive").innerHTML = '<span class="st-idle">识别中…（实时，略有滞后）</span>';
+      };
+      ws.onmessage = (ev) => {
+        let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+        if (m.type === "partial") {
+          $("subLive").innerHTML = '<span class="st-tag">识别中</span>' + escapeHtml(m.text || "");
+        } else if (m.type === "final") {
+          const hist = $("subHistory");
+          const div = document.createElement("div");
+          div.className = "st-line";
+          const cn = document.createElement("div"); cn.className = "st-cn"; cn.textContent = "翻译中…";
+          const en = document.createElement("div"); en.className = "st-en"; en.textContent = m.text || "";
+          div.appendChild(cn); div.appendChild(en);
+          hist.appendChild(div);
+          hist.scrollTop = hist.scrollHeight;
+          $("subLive").innerHTML = "";
+          translateEnZh(m.text).then(zh => {
+            cn.textContent = zh || "（翻译不可用，仅英文）";
+          });
+        } else if (m.type === "error") {
+          $("subLive").innerHTML = '<span class="st-idle">字幕出错：' + escapeHtml(m.msg || "") + '</span>';
+        }
+      };
+      ws.onerror = () => { if (subWs === ws) $("subLive").innerHTML = '<span class="st-idle">字幕连接失败（后端不可用）</span>'; };
+      ws.onclose = () => { if (subWs === ws) $("subLive").innerHTML = '<span class="st-idle">字幕已停止</span>'; };
+    }
+    function stopSubtitle() {
+      subOn = false;
+      $("subBtn").classList.remove("on");
+      if (subWs) { try { subWs.close(); } catch (e) {} subWs = null; }
+      $("subBar").classList.remove("on");
+      $("subLive").innerHTML = '<span class="st-idle">字幕未开启（英文/境外台可用）</span>';
+    }
+    function metaLine(st) {
+      const parts = [];
+      if (st.country) parts.push(st.country);
+      if (st.bitrate) parts.push(st.bitrate + "kbps");
+      if (st.codec) parts.push(st.codec);
+      return parts.join(" · ");
+    }
+    function setNow(st, sub) { $("nowTitle").textContent = st.name; $("nowSub").textContent = sub; }
+    function setNet(t, live) { $("netText").textContent = t; $("netDot").className = "dot" + (live ? " live" : ""); }
+    function markPlaying() {
+      document.querySelectorAll(".card").forEach(c => {
+        c.classList.toggle("playing", !!current && c.dataset.url === current.url);
+        c.classList.toggle("recording", Rec.active && !!Rec.station && c.dataset.url === Rec.station.url);
+      });
+    }
+    function updateStars() {
+      document.querySelectorAll(".card").forEach(c => {
+        const all = TV_STATIONS.concat(CN_RADIO, EN_RADIO, favs);
+        const st = all.find(x => x.url === c.dataset.url);
+        if (!st) return;
+        const star = c.querySelector(".star");
+        if (star) star.classList.toggle("on", isFav(st));
+      });
+    }
+    function jump(delta) {
+      if (!currentList.length) return;
+      let i = currentIndex + delta;
+      if (i < 0) i = currentList.length - 1;
+      if (i >= currentList.length) i = 0;
+      playStation(currentList[i], currentList, i);
+    }
+
+    // 锁屏 / 通知栏控制（安卓上很关键）
+    function updateMediaSession(st) {
+      if (!("mediaSession" in navigator)) return;
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: st.name,
+          artist: metaLine(st),
+          album: "网络收音机",
+          artwork: [
+            { src: "icon-192.png", sizes: "192x192", type: "image/png" },
+            { src: "icon-512.png", sizes: "512x512", type: "image/png" }
+          ]
+        });
+        navigator.mediaSession.setActionHandler("play", () => audio.play().catch(() => {}));
+        navigator.mediaSession.setActionHandler("pause", () => audio.pause());
+        navigator.mediaSession.setActionHandler("previoustrack", () => jump(-1));
+        navigator.mediaSession.setActionHandler("nexttrack", () => jump(1));
+      } catch (e) {}
+    }
+
+    /* =========================================================
+     * 6. 录音引擎
+     *    HLS  → 截获 hls.js 已下载的分片，TS 解复用为 .aac（零额外流量）
+     *    直链 → 另开一路 fetch 流式读取原始字节，.mp3/.aac 原样落盘
+     *    桌面 → 全部交给本地服务端录制（不受浏览器限制，最稳）
+     * ========================================================= */
+    const Rec = {
+      active: false, station: null, mode: null,
+      chunks: [], bytes: 0, startAt: 0, segStart: 0, segIndex: 1,
+      segMinutes: 0, ext: "bin", mime: "application/octet-stream",
+      abort: null, tick: null, autoStopAt: 0
+    };
+
+    function recordableInfo(st) {
+      if (!st) return { ok: false, why: "未选择电台" };
+      if (IS_DESKTOP) return { ok: true, why: "" };
+      if (isHlsUrl(st)) return { ok: true, why: "" };          // 走分片截获
+      return { ok: true, why: "" };                             // 直链先试，失败会提示
+    }
+
+    function onFragLoaded(ev, data) {
+      if (!Rec.active || Rec.mode !== "hls") return;
+      let payload = data && (data.payload || (data.frag && data.frag.payload));
+      if (!payload) return;
+      let u8;
+      try {
+        u8 = new Uint8Array(payload.byteLength ? payload.slice(0) : payload);
+      } catch (e) { return; }             // 已被 worker 转移
+      if (!u8.length) return;
+      const r = tsExtractAudio(u8);
+      const out = r ? r.data : u8;
+      if (r && Rec.ext === "bin") {
+        Rec.ext = r.ext;
+        Rec.mime = r.ext === "mp3" ? "audio/mpeg" : "audio/aac";
+      } else if (!r && Rec.ext === "bin") {
+        // 无 TS 同步头：可能是 fragmented MP4（fMP4），原样保存为 .m4a
+        if (u8[4] === 0x66 && u8[5] === 0x74 && u8[6] === 0x79 && u8[7] === 0x70) {
+          Rec.ext = "m4a"; Rec.mime = "audio/mp4";
+        } else {
+          Rec.ext = "ts"; Rec.mime = "video/mp2t";
+        }
+      }
+      Rec.chunks.push(out);
+      Rec.bytes += out.length;
+      maybeRotate();
+    }
+
+    async function streamRecord(url) {
+      const ctrl = new AbortController();
+      Rec.abort = ctrl;
+      // 候选来源：直连 → 各公共代理（服务端抓取，绕过浏览器 CORS / 防盗链）
+      const cands = [];
+      if (!usingProxy) cands.push({ url: url, via: "direct" });
+      for (let i = 0; i < PROXIES.length; i++)
+        cands.push({ url: PROXIES[(proxyIdx + i) % PROXIES.length] + encodeURIComponent(url), via: "proxy" });
+
+      for (const c of cands) {
+        if (!Rec.active) return;
+        let res;
+        try {
+          res = await fetch(c.url, { signal: ctrl.signal, cache: "no-store" });
+        } catch (e) {
+          if (c.via === "direct" && Rec.active) setNow(Rec.station, "直连被跨域拦截，改用代理…");
+          continue;
+        }
+        if (!res.ok || !res.body) {
+          if (c.via === "direct" && Rec.active) setNow(Rec.station, "直连返回 " + res.status + "，改用代理…");
+          continue;
+        }
+        const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+        if (ct.indexOf("aac") >= 0 || ct.indexOf("aacp") >= 0) { Rec.ext = "aac"; Rec.mime = "audio/aac"; }
+        else if (ct.indexOf("ogg") >= 0) { Rec.ext = "ogg"; Rec.mime = "audio/ogg"; }
+        else if (/\.aac($|\?)/i.test(url)) { Rec.ext = "aac"; Rec.mime = "audio/aac"; }
+        else { Rec.ext = "mp3"; Rec.mime = "audio/mpeg"; }
+        if (c.via === "proxy" && Rec.active) setNow(Rec.station, "通过代理录制中…");
+
+        const reader = res.body.getReader();
+        let got = false;
+        try {
+          while (Rec.active) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (!value || !value.length) continue;
+            got = true;
+            Rec.chunks.push(value);
+            Rec.bytes += value.length;
+            maybeRotate();
+          }
+        } catch (e) { /* abort 正常退出 */ }
+        if (got) return;                     // 已录到数据，正常结束
+        if (c.via === "direct" && Rec.active) setNow(Rec.station, "直连无数据，改用代理…");
+      }
+      // 所有来源都失败 / 无数据
+      if (Rec.active) {
+        Rec.stop(true);
+        toast("未能录制：该台跨域/防盗链较严，请用桌面版（exe）录制");
+      }
+    }
+
+    function maybeRotate() {
+      if (!Rec.segMinutes) return;
+      if (Date.now() - Rec.segStart >= Rec.segMinutes * 60000) flushSegment(false);
+    }
+
+    async function flushSegment(isFinal) {
+      if (!Rec.chunks.length) { Rec.segStart = Date.now(); return; }
+      const chunks = Rec.chunks, dur = Date.now() - Rec.segStart;
+      Rec.chunks = []; Rec.segStart = Date.now();
+      const blob = new Blob(chunks, { type: Rec.mime });
+      const base = safeName(Rec.station ? Rec.station.name : "录音");
+      const suffix = Rec.segMinutes ? ("_P" + String(Rec.segIndex).padStart(2, "0")) : "";
+      Rec.segIndex++;
+      const item = {
+        name: base + "_" + stamp(new Date(Date.now() - dur)) + suffix + "." + (Rec.ext === "bin" ? "mp3" : Rec.ext),
+        station: Rec.station ? Rec.station.name : "",
+        country: Rec.station ? Rec.station.country : "",
+        mime: Rec.mime, size: blob.size, durationMs: dur, startedAt: Date.now() - dur, blob: blob
+      };
+      try {
+        await dbAdd(item);
+        if (!isFinal) toast("已自动分段保存：" + item.name);
+        // 若用户选择「本机文件夹」存储，额外写一份到该目录（应用内仍保留以便播放）
+        if (!IS_DESKTOP && settings.storage === "folder") {
+          writeToFolder(item.name, blob).then(ok => {
+            if (!ok) toast("已存入录音库；写入本机文件夹失败（授权可能已失效，去设置重新选择）");
+          }).catch(() => {});
+        }
+      } catch (e) { toast("保存失败：" + (e && e.message ? e.message : e)); }
+      refreshLibCount();
+      if (activeTab === "lib") renderLibrary();
+    }
+
+    Rec.start = async function () {
+      if (Rec.active) return;
+      if (!current) { toast("请先选择一个电台"); return; }
+      const info = recordableInfo(current);
+      if (!info.ok) { toast(info.why); return; }
+
+      Rec.active = true; Rec.station = current;
+      Rec.chunks = []; Rec.bytes = 0;
+      Rec.startAt = Date.now(); Rec.segStart = Date.now(); Rec.segIndex = 1;
+      Rec.ext = "bin"; Rec.mime = "application/octet-stream";
+      Rec.segMinutes = segMinutes;
+
+      if (IS_DESKTOP) {
+        Rec.mode = "server";
+        try {
+          const r = await fetch(API + "/api/rec/start", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: current.url, name: current.name, seg: segMinutes })
+          }).then(x => x.json());
+          if (!r.ok) throw new Error(r.error || "未知错误");
+        } catch (e) {
+          Rec.active = false; updateRecBtn();
+          toast("录制启动失败：" + (e.message || e)); return;
+        }
+      } else if (isHlsUrl(current) && hls) {
+        Rec.mode = "hls";
+      } else if (isHlsUrl(current)) {
+        Rec.active = false; toast("请先播放该台再开始录制"); updateRecBtn(); return;
+      } else {
+        Rec.mode = "stream";
+        streamRecord(current.url);
+      }
+
+      startRecTick();
+      updateRecBtn(); markPlaying();
+      toast("开始录制：" + current.name + (segMinutes ? "（每 " + segMinutes + " 分钟自动分段）" : ""));
+      requestWakeLock();
+    };
+
+    Rec.stop = async function (silent) {
+      if (!Rec.active) return;
+      Rec.active = false;
+      stopRecTick();
+      if (Rec.abort) { try { Rec.abort.abort(); } catch (e) {} Rec.abort = null; }
+
+      if (Rec.mode === "server") {
+        try {
+          const r = await fetch(API + "/api/rec/stop", { method: "POST" }).then(x => x.json());
+          if (r.ok) {
+            const files = r.files || [];
+            if (!silent) {
+              if (files.length) toast("已保存到：" + files.join("、"));
+              else toast("未捕获到音频：该台可能需特殊请求头或链接已失效");
+            }
+          }
+        } catch (e) { toast("停止失败：" + (e.message || e)); }
+        refreshLibCount();
+        if (activeTab === "lib") renderLibrary();
+      } else {
+        const total = Rec.bytes;
+        await flushSegment(true);
+        if (!silent) {
+          if (total) toast("录音已保存到「录音库」（" + fmtSize(total) + "）");
+          else toast("未捕获到音频：该台可能被跨域限制，请用桌面版（exe）录制");
+        }
+      }
+      Rec.station = null; Rec.mode = null; Rec.bytes = 0; Rec.chunks = [];
+      Rec.autoStopAt = 0;
+      updateRecBtn(); markPlaying(); releaseWakeLock();
+    };
+
+    let recTickId = null;
+    function startRecTick() {
+      stopRecTick();
+      recTickId = setInterval(async () => {
+        if (!Rec.active) return;
+        let bytes = Rec.bytes;
+        if (Rec.mode === "server") {
+          try {
+            const s = await fetch(API + "/api/rec/status").then(x => x.json());
+            bytes = s.bytes || 0;
+            if (!s.recording) { Rec.stop(true); return; }
+          } catch (e) {}
+        }
+        const el = Date.now() - Rec.startAt;
+        $("recPillText").textContent = fmtDur(el) + " · " + fmtSize(bytes);
+        if (Rec.autoStopAt && Date.now() >= Rec.autoStopAt) {
+          toast("预约录制已完成");
+          Rec.stop();
+        }
+      }, 1000);
+      $("recPill").classList.add("on");
+      $("recPillText").textContent = "00:00";
+    }
+    function stopRecTick() {
+      if (recTickId) { clearInterval(recTickId); recTickId = null; }
+      $("recPill").classList.remove("on");
+    }
+    function updateRecBtn() {
+      const b = $("recBtn");
+      b.classList.toggle("on", Rec.active);
+      b.textContent = Rec.active ? "⏹" : "⏺";
+      b.title = Rec.active ? "停止录音" : "开始录音";
+      b.disabled = !current && !Rec.active;
+    }
+
+    // 屏幕常亮：手机端长时间录制时避免系统休眠中断
+    let wakeLock = null;
+    async function requestWakeLock() {
+      try {
+        if (settings.keepAwake && "wakeLock" in navigator && !wakeLock)
+          wakeLock = await navigator.wakeLock.request("screen");
+      } catch (e) {}
+    }
+    function releaseWakeLock() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {} }
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && Rec.active) requestWakeLock();
+    });
+
+    /* =========================================================
+     * 7. 录音库 UI
+     * ========================================================= */
+    async function listRecordings() {
+      if (IS_DESKTOP) {
+        try {
+          const r = await fetch(API + "/api/rec/list").then(x => x.json());
+          return (r.items || []).map(it => ({
+            id: it.name, name: it.name, station: it.station || "", mime: it.mime || "audio/mpeg",
+            size: it.size, durationMs: (it.duration || 0) * 1000, startedAt: it.mtime * 1000,
+            src: API + "/rec/" + encodeURIComponent(it.name), server: true
+          }));
+        } catch (e) { return []; }
+      }
+      const rows = await dbAll();
+      return rows.map(r => ({ ...r, src: null }));
+    }
+
+    async function refreshLibCount() {
+      try {
+        const items = await listRecordings();
+        $("libCount").textContent = items.length ? "(" + items.length + ")" : "";
+      } catch (e) {}
+    }
+
+    async function renderLibrary() {
+      const box = $("reclist");
+      const items = await listRecordings();
+      $("libCount").textContent = items.length ? "(" + items.length + ")" : "";
+      if (!items.length) {
+        box.innerHTML = "";
+        $("empty").style.display = "block";
+        $("empty").innerHTML = "还没有录音。<br/>选一个电台开始播放，点播放条上的 <b style='color:var(--rec)'>⏺</b> 即可录制。";
+        return;
+      }
+      $("empty").style.display = "none";
+      const totalSize = items.reduce((a, b) => a + (b.size || 0), 0);
+      let html = '<div class="libbar"><span class="sum">共 ' + items.length + " 个文件 · " + fmtSize(totalSize) + "</span>";
+      if (IS_DESKTOP) html += '<button class="obtn" id="openDirBtn">📂 打开录音文件夹</button>';
+      html += "</div>";
+      items.forEach((it, i) => {
+        html += '<div class="recitem" data-i="' + i + '">' +
+          '<div class="ri-ico">🎧</div>' +
+          '<div class="ri-main">' +
+            '<div class="ri-name">' + escapeHtml(it.name) + "</div>" +
+            '<div class="ri-meta">' + escapeHtml(it.station || "") +
+              (it.durationMs ? " · " + fmtDur(it.durationMs) : "") +
+              " · " + fmtSize(it.size) +
+              " · " + new Date(it.startedAt).toLocaleString("zh-CN") + "</div>" +
+          "</div>" +
+          '<div class="ri-ops">' +
+            '<button class="obtn pri" data-act="play">▶ 试听</button>' +
+            '<button class="obtn" data-act="save">⬇ 导出</button>' +
+            '<button class="obtn" data-act="rename">✎ 重命名</button>' +
+            '<button class="obtn danger" data-act="del">🗑 删除</button>' +
+          "</div>" +
+          '<div class="ri-player" style="width:100%"></div>' +
+        "</div>";
+      });
+      box.innerHTML = html;
+
+      const openBtn = $("openDirBtn");
+      if (openBtn) openBtn.onclick = () => fetch(API + "/api/rec/open", { method: "POST" });
+
+      box.querySelectorAll(".recitem").forEach(node => {
+        const it = items[parseInt(node.dataset.i, 10)];
+        node.querySelectorAll("[data-act]").forEach(btn => {
+          btn.onclick = async () => {
+            const act = btn.dataset.act;
+            if (act === "play") {
+              const ph = node.querySelector(".ri-player");
+              if (ph.firstChild) { ph.innerHTML = ""; btn.textContent = "▶ 试听"; return; }
+              const a = document.createElement("audio");
+              a.controls = true;
+              a.src = it.src || URL.createObjectURL(it.blob);
+              ph.appendChild(a); a.play().catch(() => {});
+              btn.textContent = "✕ 收起";
+            } else if (act === "save") {
+              const url = it.src || URL.createObjectURL(it.blob);
+              const a = document.createElement("a");
+              a.href = url; a.download = it.name; document.body.appendChild(a); a.click(); a.remove();
+              if (!it.src) setTimeout(() => URL.revokeObjectURL(url), 30000);
+              toast(IS_DESKTOP ? "已下载到浏览器默认目录" : "已导出：" + it.name);
+            } else if (act === "rename") {
+              const nn = prompt("新的文件名", it.name);
+              if (!nn || nn === it.name) return;
+              if (it.server) {
+                const r = await fetch(API + "/api/rec/rename", {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ from: it.name, to: nn })
+                }).then(x => x.json());
+                if (!r.ok) return toast("重命名失败：" + r.error);
+              } else {
+                const row = (await dbAll()).find(x => x.id === it.id);
+                if (row) { row.name = nn; await dbPut(row); }
+              }
+              renderLibrary();
+            } else if (act === "del") {
+              if (!confirm("确定删除「" + it.name + "」？")) return;
+              if (it.server) {
+                await fetch(API + "/api/rec/delete", {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name: it.name })
+                });
+              } else {
+                await dbDel(it.id);
+              }
+              toast("已删除");
+              renderLibrary();
+            }
+          };
+        });
+      });
+    }
+
+    /* =========================================================
+     * 8. 列表渲染
+     * ========================================================= */
+    const grid = $("grid"), loadingEl = $("loading"), emptyEl = $("empty"), reclistEl = $("reclist");
+
+    function render() {
+      if (activeTab === "lib") {
+        grid.style.display = "none"; reclistEl.style.display = "flex";
+        emptyEl.style.display = "none";
+        renderLibrary();
+        return;
+      }
+      grid.style.display = "grid"; reclistEl.style.display = "none";
+      let list;
+      if (activeTab === "tv") list = TV_STATIONS;
+      else if (activeTab === "cn") list = CN_RADIO;
+      else if (activeTab === "en") list = EN_RADIO;
+      else if (activeTab === "fav") list = favs;
+      else list = currentList;
+      renderCards(list);
+    }
+
+    function renderCards(list) {
+      grid.innerHTML = "";
+      if (!list || !list.length) {
+        emptyEl.style.display = "block";
+        emptyEl.textContent = activeTab === "fav" ? "还没有收藏，点击卡片右上角 ☆ 即可收藏。" : "没有可显示的电台。";
+        return;
+      }
+      emptyEl.style.display = "none";
+      const frag = document.createDocumentFragment();
+      list.forEach((st, idx) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.url = st.url;
+        const flag = (st.country === "中国") ? "🇨🇳" : "🌐";
+        const badge = (st.region === "intl") ? '<span class="badge">境外</span>' : "";
+        const noRec = (!IS_DESKTOP && isHlsUrl(st)) ? "" : "";
+        card.innerHTML =
+          '<div class="star' + (isFav(st) ? " on" : "") + '" title="收藏">☆</div>' +
+          '<div class="row1">' +
+            '<div class="ico">' + flag + "</div>" +
+            '<div><div class="name">' + escapeHtml(st.name) + badge + noRec + "</div>" +
+            '<div class="meta">' + escapeHtml(metaLine(st)) + "</div></div>" +
+          "</div>";
+        card.addEventListener("click", (e) => {
+          if (e.target.classList.contains("star")) { e.stopPropagation(); toggleFav(st); return; }
+          playStation(st, list, idx);
+        });
+        frag.appendChild(card);
+      });
+      grid.appendChild(frag);
+      markPlaying();
+    }
+
+    /* =========================================================
+     * 9. 事件绑定
+     * ========================================================= */
+    document.querySelectorAll(".tab").forEach(t => {
+      t.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+        t.classList.add("active");
+        activeTab = t.dataset.tab;
+        render();
+      });
+    });
+
+    $("playBtn").addEventListener("click", () => {
+      if (!current) { if (currentList.length) playStation(currentList[0], currentList, 0); return; }
+      const willPause = !audio.paused;
+      if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+      setPlayIcon(!audio.paused);
+      if (willPause && subOn) stopSubtitle();   // 暂停即停止字幕（后端另起流，避免空转）
+    });
+    $("prevBtn").addEventListener("click", () => jump(-1));
+    $("nextBtn").addEventListener("click", () => jump(1));
+    $("vol").addEventListener("input", (e) => { audio.volume = parseFloat(e.target.value); });
+    $("recBtn").addEventListener("click", () => { Rec.active ? Rec.stop() : Rec.start(); });
+    $("subBtn").addEventListener("click", () => { subOn ? stopSubtitle() : startSubtitle(); });
+
+    // 键盘快捷键（桌面）
+    document.addEventListener("keydown", (e) => {
+      if (/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+      if (e.code === "Space") { e.preventDefault(); $("playBtn").click(); }
+      else if (e.code === "ArrowLeft") jump(-1);
+      else if (e.code === "ArrowRight") jump(1);
+      else if (e.key === "r" || e.key === "R") $("recBtn").click();
+      else if (e.key === "c" || e.key === "C") { if ($("subBtn").style.display !== "none") $("subBtn").click(); }
+    });
+
+    /* ---------- 分段设置 ---------- */
+    const SEG_KEY = "webradio_seg_v1";
+    let segMinutes = parseInt(localStorage.getItem(SEG_KEY) || "0", 10) || 0;
+    function refreshSegChips() {
+      document.querySelectorAll(".chip[data-seg]").forEach(c => {
+        c.classList.toggle("active", parseInt(c.dataset.seg, 10) === segMinutes);
+      });
+    }
+    document.querySelectorAll(".chip[data-seg]").forEach(c => {
+      c.addEventListener("click", () => {
+        segMinutes = parseInt(c.dataset.seg, 10);
+        localStorage.setItem(SEG_KEY, String(segMinutes));
+        refreshSegChips();
+        toast(segMinutes ? "录音将每 " + segMinutes + " 分钟自动分段" : "已关闭自动分段");
+      });
+    });
+    refreshSegChips();
+
+    /* ---------- 预约录制 ---------- */
+    const SCH_KEY = "webradio_sch_v1";
+    let sch = null;
+    try { sch = JSON.parse(localStorage.getItem(SCH_KEY) || "null"); } catch (e) { sch = null; }
+    let schDaily = sch ? !!sch.daily : false;
+
+    function nextFireTime(hhmm, daily, fromTs) {
+      const [h, m] = hhmm.split(":").map(n => parseInt(n, 10));
+      const d = new Date(fromTs || Date.now());
+      const t = new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m, 0, 0);
+      if (t.getTime() <= Date.now()) t.setDate(t.getDate() + 1);
+      return t.getTime();
+    }
+    function saveSch() { localStorage.setItem(SCH_KEY, sch ? JSON.stringify(sch) : ""); }
+    function refreshSchUI() {
+      $("schDaily").classList.toggle("active", schDaily);
+      if (sch && sch.at) {
+        $("schToggle").textContent = "取消预约";
+        $("schToggle").classList.add("active");
+        const d = new Date(sch.at);
+        const p = (n) => String(n).padStart(2, "0");
+        $("schInfo").textContent = "⏰ " + (sch.daily ? "每天 " : "") +
+          p(d.getMonth() + 1) + "/" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes()) +
+          " 录 " + sch.dur + " 分钟 · " + (sch.stationName || "当前台");
+      } else {
+        $("schToggle").textContent = "设定";
+        $("schToggle").classList.remove("active");
+        $("schInfo").textContent = "";
+      }
+    }
+    $("schDaily").addEventListener("click", () => {
+      schDaily = !schDaily;
+      if (sch) { sch.daily = schDaily; saveSch(); }
+      refreshSchUI();
+    });
+    $("schToggle").addEventListener("click", () => {
+      if (sch && sch.at) { sch = null; saveSch(); refreshSchUI(); toast("已取消预约"); return; }
+      const tv = $("schTime").value;
+      if (!tv) { toast("请先选择开始时间"); return; }
+      const dur = Math.max(1, parseInt($("schDur").value, 10) || 30);
+      if (!current) { toast("请先选中要预约录制的电台"); return; }
+      sch = { at: nextFireTime(tv, schDaily), time: tv, dur: dur, daily: schDaily,
+              stationUrl: current.url, stationName: current.name };
+      saveSch(); refreshSchUI();
+      toast("已预约：" + sch.stationName + " " + tv + " 起录 " + dur + " 分钟");
+    });
+    if (sch && sch.at && sch.at < Date.now() - 3600000) { sch = null; saveSch(); }
+    if (sch && sch.time) { $("schTime").value = sch.time; $("schDur").value = sch.dur; }
+    refreshSchUI();
+
+    setInterval(() => {
+      if (!sch || !sch.at || Rec.active) return;
+      if (Date.now() < sch.at) return;
+      const all = TV_STATIONS.concat(CN_RADIO, EN_RADIO, favs);
+      const st = all.find(x => x.url === sch.stationUrl) ||
+                 { name: sch.stationName || "预约电台", url: sch.stationUrl, country: "", codec: "" };
+      const dur = sch.dur;
+      if (sch.daily) { sch.at = nextFireTime(sch.time, true); saveSch(); }
+      else { sch = null; saveSch(); }
+      refreshSchUI();
+      toast("⏰ 预约触发，开始录制 " + st.name);
+      playStation(st, all, all.indexOf(st));
+      setTimeout(() => {
+        Rec.start().then(() => { Rec.autoStopAt = Date.now() + dur * 60000; });
+      }, isHlsUrl(st) ? 4000 : 1500);
+    }, 5000);
+
+    /* ---------- 定时关闭 ---------- */
+    let timerId = null, timerEnd = 0;
+    const timerRange = $("timerRange"), timerVal = $("timerVal"),
+          timerLeft = $("timerLeft"), timerToggle = $("timerToggle");
+    const timerChips = document.querySelectorAll(".chip[data-min]");
+    function refreshTimerVal() { timerVal.textContent = parseInt(timerRange.value, 10) + "分"; }
+    function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
+    function resetTimerUI() {
+      timerToggle.textContent = "开始"; timerToggle.classList.remove("active");
+      timerChips.forEach(c => c.classList.remove("active")); timerLeft.textContent = "";
+    }
+    function startTimer(min) {
+      stopTimer();
+      timerEnd = Date.now() + min * 60000;
+      timerToggle.textContent = "取消"; timerToggle.classList.add("active");
+      timerChips.forEach(c => c.classList.toggle("active", parseInt(c.dataset.min, 10) === min));
+      timerLeft.textContent = "剩余 " + fmtDur(min * 60000);
+      timerId = setInterval(() => {
+        const left = timerEnd - Date.now();
+        if (left <= 0) {
+          stopTimer();
+          if (Rec.active) Rec.stop();
+          stopCurrent(); setPlayIcon(false); setNet("就绪", false);
+          if (current) setNow(current, "已定时关闭");
+          resetTimerUI(); return;
+        }
+        timerLeft.textContent = "剩余 " + fmtDur(left);
+      }, 1000);
+    }
+    timerRange.addEventListener("input", refreshTimerVal);
+    timerChips.forEach(c => c.addEventListener("click", () => {
+      const m = parseInt(c.dataset.min, 10);
+      timerRange.value = m; refreshTimerVal(); startTimer(m);
+    }));
+    timerToggle.addEventListener("click", () => {
+      if (timerId) { stopTimer(); resetTimerUI(); } else startTimer(parseInt(timerRange.value, 10));
+    });
+    refreshTimerVal();
+
+    /* ---------- 折叠录制设置 ---------- */
+    $("foldRec").addEventListener("click", () => {
+      const h = $("foldRec"), s = $("recSettings");
+      const open = h.classList.toggle("open");
+      s.style.display = open ? "contents" : "none";
+    });
+
+    window.addEventListener("beforeunload", (e) => {
+      if (Rec.active) { e.preventDefault(); e.returnValue = "正在录音，离开将结束录制"; }
+    });
+
+    /* =========================================================
+     * 9.5 设置：存储位置 / 常亮 / 桌面路径
+     * ========================================================= */
+    // ---- 本机文件夹（File System Access API，安卓Chrome / 桌面Chrome 可用）----
+    let fsHandle = null, fshp = null;
+    function fsdb() {
+      if (fshp) return fshp;
+      fshp = new Promise((res, rej) => {
+        const rq = indexedDB.open("webradio-fs", 1);
+        rq.onupgradeneeded = () => { const d = rq.result; if (!d.objectStoreNames.contains("h")) d.createObjectStore("h"); };
+        rq.onsuccess = () => res(rq.result);
+        rq.onerror = () => rej(rq.error);
+      });
+      return fshp;
+    }
+    async function loadFsHandle() {
+      if (!FS_AVAIL) return;
+      try {
+        const db = await fsdb();
+        const r = db.transaction("h", "readonly").objectStore("h").get("dir");
+        fsHandle = await new Promise((res) => { r.onsuccess = () => res(r.result || null); r.onerror = () => res(null); });
+        if (fsHandle) { try { await fsHandle.requestPermission({ mode: "readwrite" }); } catch (e) {} }
+      } catch (e) { fsHandle = null; }
+    }
+    async function saveFsHandle(h) {
+      const db = await fsdb();
+      await new Promise((res, rej) => {
+        const tx = db.transaction("h", "readwrite"); tx.objectStore("h").put(h, "dir");
+        tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+      });
+    }
+    async function chooseFolder() {
+      if (!FS_AVAIL) { toast("当前浏览器不支持选择文件夹（请用 Chrome / Edge）"); return false; }
+      try {
+        const h = await window.showDirectoryPicker({ mode: "readwrite" });
+        const perm = await h.requestPermission({ mode: "readwrite" });
+        if (perm !== "granted") { toast("未授权写入该文件夹"); return false; }
+        fsHandle = h; await saveFsHandle(h); return true;
+      } catch (e) { if (e && e.name !== "AbortError") toast("选择文件夹失败：" + (e.message || e)); return false; }
+    }
+    async function writeToFolder(name, blob) {
+      if (!fsHandle) return false;
+      try {
+        const fh = await fsHandle.getFileHandle(name, { create: true });
+        const w = await fh.createWritable();
+        await w.write(blob); await w.close();
+        return true;
+      } catch (e) { return false; }
+    }
+
+    // ---- 设置弹窗 ----
+    function openSettings() { renderSettings(); $("settingsModal").style.display = "flex"; }
+    function closeSettings() { $("settingsModal").style.display = "none"; }
+    function renderSettings() {
+      // 存储位置
+      document.querySelectorAll('input[name="stgStorage"]').forEach(r => { r.checked = (r.value === settings.storage); });
+      const canFolder = !IS_DESKTOP && FS_AVAIL;
+      $("lblFolder").style.display = canFolder ? "" : "none";
+      $("btnChooseFolder").style.display = canFolder ? "" : "none";
+      $("folderName").textContent = (fsHandle && fsHandle.name) ? fsHandle.name : "未选择";
+      if (!FS_AVAIL && !IS_DESKTOP) $("fsHint").textContent = "（本浏览器不支持，仅桌面版 Chrome/Edge 与安卓 Chrome 可选）";
+      else $("fsHint").textContent = "";
+      // 常亮
+      $("chkKeepAwake").checked = !!settings.keepAwake;
+      // 桌面路径
+      $("rowDesktop").style.display = IS_DESKTOP ? "" : "none";
+      $("desktopPath").textContent = (settings.recDir || "（默认）");
+    }
+    function applyStorage(v) {
+      settings.storage = v; saveSettings();
+      if (v === "folder") {
+        if (!fsHandle) { chooseFolder().then(ok => { if (!ok) { settings.storage = "app"; saveSettings(); renderSettings(); } }); }
+      }
+    }
+
+    $("gearBtn").addEventListener("click", openSettings);
+    $("btnCloseSettings").addEventListener("click", closeSettings);
+    $("settingsModal").addEventListener("click", (e) => { if (e.target === $("settingsModal")) closeSettings(); });
+    document.querySelectorAll('input[name="stgStorage"]').forEach(r => {
+      r.addEventListener("change", () => { if (r.checked) applyStorage(r.value); });
+    });
+    $("btnChooseFolder").addEventListener("click", () => {
+      chooseFolder().then(ok => { if (ok) { settings.storage = "folder"; saveSettings(); renderSettings(); toast("已选择文件夹：" + (fsHandle.name || "")); } });
+    });
+    $("chkKeepAwake").addEventListener("change", (e) => {
+      settings.keepAwake = e.target.checked; saveSettings();
+      if (settings.keepAwake && Rec.active) requestWakeLock();
+      else if (!settings.keepAwake) releaseWakeLock();
+    });
+    // 桌面端：选择 / 打开存储文件夹（通过 pywebview 桥或 REST）
+    if (IS_DESKTOP) {
+      $("btnDesktopPick").addEventListener("click", async () => {
+        try {
+          let path = null;
+          if (HAS_PYWEBVIEW) path = await window.pywebview.api.pick_folder();
+          else { const r = await fetch(API + "/api/config/pick", { method: "POST" }).then(x => x.json()); path = r.path; }
+          if (!path) return;
+          const r = await fetch(API + "/api/config", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rec_dir: path })
+          }).then(x => x.json());
+          if (r.ok) { settings.recDir = path; renderSettings(); toast("存储路径已更新：" + path); }
+          else toast("设置失败：" + (r.error || ""));
+        } catch (e) { toast("选择失败：" + (e && e.message || e)); }
+      });
+      $("btnDesktopOpen").addEventListener("click", () => {
+        fetch(API + "/api/rec/open", { method: "POST" }).catch(() => {});
+      });
+    }
+
+    /* =========================================================
+     * 10. 初始化
+     * ========================================================= */
+    currentList = TV_STATIONS;
+    render(); setNet("就绪", false);
+    updateRecBtn(); refreshLibCount();
+    if (!IS_DESKTOP) loadFsHandle();
+
+    // PWA 快捷方式（manifest shortcuts 的 #lib / #cn 等）→ 跳到对应页签
+    function applyHashTab() {
+      const h = (location.hash || "").replace(/^#/, "");
+      if (!/^[a-z]+$/i.test(h)) return;
+      const t = document.querySelector('.tab[data-tab="' + h + '"]');
+      if (t && !t.classList.contains("active")) t.click();
+    }
+    window.addEventListener("hashchange", applyHashTab);
+    applyHashTab();
+
+    if (IS_DESKTOP) {
+      // 桌面端启动时同步一次录音状态（防止刷新后状态丢失）
+      fetch(API + "/api/rec/status").then(x => x.json()).then(s => {
+        if (s && s.recording) {
+          Rec.active = true; Rec.mode = "server";
+          Rec.station = { name: s.station || "录音中", url: s.url || "" };
+          Rec.startAt = Date.now() - (s.elapsed || 0) * 1000;
+          startRecTick(); updateRecBtn();
+        }
+      }).catch(() => {});
+      // 同步存储路径
+      fetch(API + "/api/config").then(x => x.json()).then(c => {
+        if (c && c.ok && c.rec_dir) { settings.recDir = c.rec_dir; renderSettings(); }
+      }).catch(() => {});
+    }
+
+    if ("serviceWorker" in navigator && location.protocol !== "file:") {
+      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    }
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.venv-build/
+venv/
+*.egg-info/
+
+# PyInstaller
+radio-desktop/build/
+radio-desktop/dist/*.bak*
+radio-desktop/dist/*.prev
+radio-desktop/*.log
+
+# 构建工具链（体积大，不入库）
+build-tools/
+
+# Android
+android-app/.gradle/
+android-app/build/
+android-app/app/build/
+android-app/local.properties
+android-app/*.iml
+android-app/.idea/
+
+# Node
+node_modules/
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+*.swp
+
+# 临时与诊断输出
+*.log
+radio-desktop/*.txt
+_check.js
+.wbapp_*
+.workbuddy/
+
+# Vosk 模型（约 70MB，需要时从旧 exe 提取或自行下载）
+radio-desktop/models/
+
+# 大体积产物走 GitHub Release，不进 git（>100MB）
+radio-desktop/dist/
+installer/*.exe
+
+# 交付产物走 Release
+releases/
+
+# 历史备份目录
+radio-desktop/_rec_disabled/
+radio-desktop/_license_disabled/
+radio-desktop/_rec_disabled/**
+radio-desktop/build/
+radio-desktop/.venv-build/

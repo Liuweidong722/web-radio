@@ -1,0 +1,9 @@
+{
+  "name": "web-radio",
+  "version": "1.1.0",
+  "private": true,
+  "description": "网络收音机在线版：静态前端 + 同源流媒体代理",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

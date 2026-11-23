@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WebRadio" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#0f1226</item>
+        <item name="android:navigationBarColor">#0f1226</item>
+        <item name="android:windowBackground">#0f1226</item>
+        <item name="android:colorPrimary">#6c7bff</item>
+        <item name="android:colorAccent">#ff6ca8</item>
+    </style>
+</resources>
