@@ -1,7 +1,7 @@
 {
   "name": "网络收音机",
   "short_name": "收音机",
-  "description": "国内外电台直播流，一键跳台，支持实时中文字幕、定时关闭与收藏。",
+  "description": "国内外电台直播流，一键跳台，支持实时英文字幕、定时关闭与收藏。",
   "lang": "zh-CN",
   "start_url": "./index.html",
   "scope": "./",
@@ -29,7 +29,7 @@
     {
       "name": "国外英文广播",
       "short_name": "英文台",
-      "description": "BBC / DW / ABC 等英文电台（可开中文字幕）",
+      "description": "BBC / DW / ABC 等英文电台（可开实时英文字幕）",
       "url": "./index.html#en",
       "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }

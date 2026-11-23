@@ -4,8 +4,7 @@
 - 接收电台流 URL（WebSocket 客户端发来）
 - 用 ffmpeg(imageio_ffmpeg) 把流解码成 16k 单声道 PCM
 - 喂给本地 Vosk 模型做离线流式识别（英文）
-- final 结果经前端翻译为中文
-- 把 {type,text,zh} 推回客户端显示
+- 把 {type,text} 推回客户端显示（仅英文字幕，不翻译）
 
 设计要点（性能相关）：
 - 声音来自电台流本身，与麦克风无关。
